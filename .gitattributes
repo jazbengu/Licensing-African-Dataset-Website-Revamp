@@ -1,0 +1,12 @@
+# Catch all files starting with wp- (wp-config.php, wp-login.php, wp-cron.php, etc.)
+wp-*.php linguist-generated=true
+
+# Catch specific root WordPress files
+index.php linguist-generated=true
+xmlrpc.php linguist-generated=true
+license.txt linguist-generated=true
+readme.html linguist-generated=true
+
+# Collapse core WordPress system folders
+wp-admin/** linguist-vendored
+wp-includes/** linguist-vendored
