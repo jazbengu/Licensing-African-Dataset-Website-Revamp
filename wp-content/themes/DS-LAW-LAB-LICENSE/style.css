@@ -3,3 +3,54 @@ Theme: DS-LAW-LAB-LICENSE
 Author: DS Law Lab
 Version: 1.0
 */  
+
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 60px 20px;
+}
+
+.case-study-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+}
+
+.card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.card h2 {
+    margin-bottom: 10px;
+}
+
+.card a {
+    color: #268181;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.tag {
+    display: inline-block;
+    padding: 6px 12px;
+    background: #eef8f8;
+    border-radius: 20px;
+    margin-bottom: 12px;
+}
+
+.dictionary-item {
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+blockquote {
+    margin-top: 30px;
+    padding: 20px;
+    border-left: 4px solid #268181;
+    background: #f7fdfd;
+    font-style: italic;
+}
