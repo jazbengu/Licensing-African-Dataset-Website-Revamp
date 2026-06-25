@@ -54,3 +54,85 @@ blockquote {
     background: #f7fdfd;
     font-style: italic;
 }
+
+html{
+    scroll-behavior: smooth;
+}
+
+.dictionary-page {
+    max-width: 1200px;
+    margin: auto;
+    padding: 60px 20px;
+}
+
+.dictionary-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+#dictionary-search {
+    width: 100%;
+    max-width: 500px;
+    padding: 12px;
+    margin-top: 20px;
+}
+
+.dictionary-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 50px;
+    position: sticky;
+    top: 80px;
+    background: white;
+    z-index: 50;
+    padding: 15px 0;
+}
+
+.dictionary-nav a {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef3f3;
+    text-decoration: none;
+}
+
+.dictionary-letter-section {
+    margin-bottom: 60px;
+}
+
+.dictionary-letter-section h2 {
+    font-size: 3rem;
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 25px;
+}
+
+.dictionary-term {
+    padding: 25px;
+    margin-bottom: 20px;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+}
+
+.term-category {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #eef8f8;
+    margin-bottom: 15px;
+}
+
+.term-example {
+    margin-top: 15px;
+}
+
+.related-terms {
+    margin-top: 15px;
+}
+
+.related-terms a {
+    margin-right: 10px;
+}

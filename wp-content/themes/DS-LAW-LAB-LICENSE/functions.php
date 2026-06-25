@@ -7,6 +7,66 @@
  }
  add_action( 'wp_enqueue_scripts', 'ds_law_lab_license_enqueue_scripts' );
 
+/** Replace default Tags box on LAD Updates with a fixed checkbox list */
+function lad_remove_default_tags_box() {
+    remove_meta_box( 'tagsdiv-post_tag', 'lad_update', 'side' );
+}
+add_action( 'admin_menu', 'lad_remove_default_tags_box' );
+
+function lad_add_custom_tags_box() {
+    add_meta_box(
+        'lad_custom_tags',
+        'Tags',
+        'lad_render_custom_tags_box',
+        'lad_update',
+        'side',
+        'default'
+    );
+}
+add_action( 'add_meta_boxes', 'lad_add_custom_tags_box' );
+
+function lad_render_custom_tags_box( $post ) {
+    wp_nonce_field( 'lad_save_custom_tags', 'lad_custom_tags_nonce' );
+
+    $allowed_tags = [
+        'Dataset Creator',
+        'Researcher',
+        'Community',
+        'Policymaker',
+        'News',
+        'Updates',
+        'Stories from the field',
+    ];
+
+    $current_tags = wp_get_post_terms( $post->ID, 'post_tag', [ 'fields' => 'names' ] );
+    ?>
+    <div style="max-height:200px; overflow-y:auto;">
+        <?php foreach ( $allowed_tags as $tag ) : ?>
+            <label style="display:block; margin-bottom:6px;">
+                <input
+                    type="checkbox"
+                    name="lad_custom_tags[]"
+                    value="<?php echo esc_attr( $tag ); ?>"
+                    <?php checked( in_array( $tag, $current_tags, true ) ); ?>
+                />
+                <?php echo esc_html( $tag ); ?>
+            </label>
+        <?php endforeach; ?>
+    </div>
+    <?php
+}
+
+function lad_save_custom_tags( $post_id ) {
+    if ( ! isset( $_POST['lad_custom_tags_nonce'] ) || ! wp_verify_nonce( $_POST['lad_custom_tags_nonce'], 'lad_save_custom_tags' ) ) return;
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+    if ( ! current_user_can( 'edit_post', $post_id ) ) return;
+
+    $selected = isset( $_POST['lad_custom_tags'] ) ? array_map( 'sanitize_text_field', (array) $_POST['lad_custom_tags'] ) : [];
+    wp_set_post_terms( $post_id, $selected, 'post_tag', false ); // false = replace, not append
+}
+add_action( 'save_post_lad_update', 'lad_save_custom_tags' );
+
+
 /** Register the custom post type and tag taxonomy */
 function lad_register_post_type() {
     register_post_type( 'lad_update', [
@@ -24,490 +84,440 @@ function lad_register_post_type() {
         'has_archive'  => true,          // gives you /lad_update/ archive URL
         'show_in_rest' => true,          // enables Gutenberg editor
         'supports'     => [ 'title', 'editor', 'author', 'excerpt', 'thumbnail' ],
-        'rewrite'      => [ 'slug' => 'updates' ],
+        'taxonomies'  => [ 'post_tag' ],    // enables tags
+        'rewrite'      => [ 'slug' => '/blog' ],
         'menu_icon'    => 'dashicons-megaphone',
     ] );
 
-    register_taxonomy( 'lad_tag', 'lad_update', [
-        'labels' => [
-            'name'          => 'Update Tags',
-            'singular_name' => 'Update Tag',
-            'edit_item'     => 'Edit Tag',
-            'add_new_item'  => 'Add New Tag',
-        ],
-        'public'            => true,
-        'hierarchical'      => false,
-        'show_in_rest'      => true,
-        'show_admin_column' => true,
-        'rewrite'           => [ 'slug' => 'updates/tag' ],
-    ] );
+
 }
 add_action( 'init', 'lad_register_post_type' );
 
-add_action( 'after_switch_theme', 'lad_flush_rewrites' );
 
-function lad_register_default_tags() {
-    $tags = [
-        'Dataset Creator',
-        'Researcher',
-        'Community',
-        'Policymaker',
-        'News',
-        'Updates',
-        'Stories from the field',
-    ];
-    foreach ($tags as $tag) {
-        if (!term_exists($tag, 'post_tag')) {
-            wp_insert_term($tag, 'post_tag');
-        }
-    }
-}
-add_action('after_switch_theme', 'lad_register_default_tags');
 
 // Make sure the excerpt is used as the lead/intro text.
 // (Write your excerpt manually in the WP editor for best results.)
 add_filter('excerpt_length', function() { return 30; }, 999);
 add_filter('excerpt_more',   function() { return '…'; });
 
-
-
-function lad_register_case_study_post_type() {
+/** ============================================================
+ *  IN PRACTICE — Case Studies CPT
+ *  ============================================================ */
+function lad_register_case_study_cpt() {
     register_post_type( 'lad_case_study', [
         'labels' => [
             'name'          => 'Case Studies',
             'singular_name' => 'Case Study',
             'add_new_item'  => 'Add New Case Study',
-            'edit_item'     => 'Edit Case Study',
         ],
         'public'       => true,
-        'has_archive'  => false,
-        'show_in_rest' => true,   // exposes to REST API + enables Gutenberg
-        'supports'     => [ 'title', 'editor' ],  // title = person name; editor = not used but good to keep
-        'rewrite'      => [ 'slug' => 'case-studies' ],
-        'menu_icon'    => 'dashicons-id-alt',
+        'show_in_rest' => true,
+        'has_archive'  => true,
+        'supports'     => [ 'title' ], // title = the person's name
+        'rewrite'      => [ 'slug' => '/noodl-framework/in-practice' ],
+        'menu_icon'    => 'dashicons-groups',
     ] );
-}
-add_action( 'init', 'lad_register_case_study_post_type' );
- 
-/**
- * Register meta fields for Case Studies.
- * These will appear as custom fields and be exposed via the REST API.
- */
-function lad_register_case_study_meta() {
+
     $fields = [
-        'lad_cs_location'  => 'string',
-        'lad_cs_role'      => 'string',
-        'lad_cs_audience'  => 'string',   // 'Dataset Creator' | 'Researcher' | 'Community' | 'Policymaker'
-        'lad_cs_tools'     => 'string',   // JSON-encoded array, e.g. '["NOODL Licence","Split Sheet"]'
-        'lad_cs_problem'   => 'string',
-        'lad_cs_outcome'   => 'string',
-        'lad_cs_quote'     => 'string',
-        'lad_cs_tag'       => 'string',   // e.g. 'Speech & Audio', 'Text & NLP'
+        'location' => 'string',
+        'role'     => 'string',
+        'audience' => 'string', // Dataset Creator | Researcher | Community | Policymaker
+        'tools'    => 'array',  // NOODL Licence | Split Sheet | Dictionary | Resource Library
+        'problem'  => 'string',
+        'outcome'  => 'string',
+        'quote'    => 'string',
+        'tag'      => 'string',
     ];
- 
     foreach ( $fields as $key => $type ) {
         register_post_meta( 'lad_case_study', $key, [
             'type'         => $type,
-            'single'       => true,
-            'show_in_rest' => true,
-            'default'      => '',
+            'single'       => $type !== 'array',
+            'show_in_rest' => $type === 'array' ? [
+                'schema' => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ]
+            ] : true,
         ] );
     }
 }
-add_action( 'init', 'lad_register_case_study_meta' );
- 
-/** Admin meta box for Case Studies */
-function lad_case_study_meta_box() {
+add_action( 'init', 'lad_register_case_study_cpt' );
+
+/** ============================================================
+ *  RESOURCE LIBRARY CPT
+ *  ============================================================ */
+function lad_register_resource_cpt() {
+    register_post_type( 'lad_resource', [
+        'labels' => [
+            'name'          => 'Resources',
+            'singular_name' => 'Resource',
+            'add_new_item'  => 'Add New Resource',
+        ],
+        'public'       => true,
+        'show_in_rest' => true,
+        'has_archive'  => true,
+        'supports'     => [ 'title', 'editor' ], // editor = description
+        'rewrite'      => [ 'slug' => '/noodl-framework/resources' ],
+        'menu_icon'    => 'dashicons-media-document',
+    ] );
+
+    $fields = [
+        'format'       => 'string', // Videos | Summaries & Explainers | Policy Briefs | Reports | Articles & Publications | Audio Explainers
+        'date'         => 'string',
+        'duration'     => 'string',
+        'language'     => 'string',
+        'author'       => 'string',
+        'outlet'       => 'string',
+        'link'         => 'string',
+        'downloadable' => 'boolean',
+        'comingSoon'   => 'boolean',
+    ];
+    foreach ( $fields as $key => $type ) {
+        register_post_meta( 'lad_resource',$key, [
+            'type'         => $type,
+            'single'       => true,
+            'show_in_rest' => true,
+        ] );
+    }
+}
+add_action( 'init', 'lad_register_resource_cpt' );
+
+/** ============================================================
+ *  DICTIONARY CPT
+ *  ============================================================ */
+function lad_register_dictionary_cpt() {
+    register_post_type( 'lad_term', [
+        'labels' => [
+            'name'          => 'Dictionary Terms',
+            'singular_name' => 'Dictionary Term',
+            'add_new_item'  => 'Add New Term',
+        ],
+        'public'       => true,
+        'show_in_rest' => true,
+        'has_archive'  => true,
+        'supports'     => [ 'title', 'editor', 'custom-fields'], // title = term, editor = definition
+        'rewrite'      => [ 'slug' => '/noodl-framework/dictionary' ],
+        'menu_icon'    => 'dashicons-book',
+    ] );
+
+    register_post_meta( 'lad_term', 'category', [
+        'type' => 'string', 'single' => true, 'show_in_rest' => true,
+    ] ); // Legal | Data Governance | NOODL | Technical | Policy
+
+
+
+    register_post_meta( 'lad_term', 'example', [
+        'type' => 'string', 'single' => true, 'show_in_rest' => true,
+    ] );
+}
+add_action( 'init', 'lad_register_dictionary_cpt' );
+
+
+
+/* ----------------------------------------------------------------
+   1. CASE STUDY META BOX
+   ---------------------------------------------------------------- */
+function lad_add_case_study_meta_box() {
     add_meta_box(
         'lad_case_study_details',
         'Case Study Details',
-        'lad_case_study_meta_box_html',
+        'lad_render_case_study_meta_box',
         'lad_case_study',
         'normal',
         'high'
     );
 }
-add_action( 'add_meta_boxes', 'lad_case_study_meta_box' );
+add_action( 'add_meta_boxes', 'lad_add_case_study_meta_box' );
  
-function lad_case_study_meta_box_html( $post ) {
-    wp_nonce_field( 'lad_case_study_save', 'lad_case_study_nonce' );
+function lad_render_case_study_meta_box( $post ) {
+    wp_nonce_field( 'lad_save_case_study', 'lad_case_study_nonce' );
  
-    $location = get_post_meta( $post->ID, 'lad_cs_location', true );
-    $role     = get_post_meta( $post->ID, 'lad_cs_role', true );
-    $audience = get_post_meta( $post->ID, 'lad_cs_audience', true );
-    $tools    = get_post_meta( $post->ID, 'lad_cs_tools', true ); // stored as JSON string
-    $problem  = get_post_meta( $post->ID, 'lad_cs_problem', true );
-    $outcome  = get_post_meta( $post->ID, 'lad_cs_outcome', true );
-    $quote    = get_post_meta( $post->ID, 'lad_cs_quote', true );
-    $tag      = get_post_meta( $post->ID, 'lad_cs_tag', true );
+    $location = get_post_meta( $post->ID, 'location', true );
+    $role     = get_post_meta( $post->ID, 'role', true );
+    $audience = get_post_meta( $post->ID, 'audience', true );
+    $tools    = (array) get_post_meta( $post->ID, 'tools', true );
+    $problem  = get_post_meta( $post->ID, 'problem', true );
+    $outcome  = get_post_meta( $post->ID, 'outcome', true );
+    $quote    = get_post_meta( $post->ID, 'quote', true );
+    $tag      = get_post_meta( $post->ID, 'tag', true );
  
-    // Decode tools for checkboxes
-    $selected_tools = $tools ? json_decode( $tools, true ) : [];
-    $all_tools = [ 'NOODL Licence', 'Split Sheet', 'Dictionary', 'Resource Library' ];
-    $all_audiences = [ 'Dataset Creator', 'Researcher', 'Community', 'Policymaker' ];
+    $audience_options = [ 'Dataset Creator', 'Researcher', 'Community', 'Policymaker' ];
+    $tool_options     = [ 'NOODL Licence', 'Split Sheet', 'Dictionary', 'Resource Library' ];
     ?>
+    <p><em>Note: the post Title field above is used as the person's <strong>Name</strong>.</em></p>
+ 
     <table class="form-table">
         <tr>
-            <th><label>Person Name</label></th>
-            <td><em>Use the post Title field above for the person's name.</em></td>
+            <th><label for="lad_location">Location</label></th>
+            <td><input type="text" id="lad_location" name="lad_location" value="<?php echo esc_attr( $location ); ?>" class="regular-text" placeholder="e.g. Nigeria" /></td>
         </tr>
         <tr>
-            <th><label for="lad_cs_location">Location</label></th>
-            <td><input type="text" id="lad_cs_location" name="lad_cs_location" value="<?php echo esc_attr( $location ); ?>" class="regular-text" placeholder="e.g. Nigeria" /></td>
+            <th><label for="lad_role">Role</label></th>
+            <td><input type="text" id="lad_role" name="lad_role" value="<?php echo esc_attr( $role ); ?>" class="regular-text" placeholder="e.g. Computational Linguist" /></td>
         </tr>
         <tr>
-            <th><label for="lad_cs_role">Role</label></th>
-            <td><input type="text" id="lad_cs_role" name="lad_cs_role" value="<?php echo esc_attr( $role ); ?>" class="regular-text" placeholder="e.g. Computational Linguist" /></td>
-        </tr>
-        <tr>
-            <th><label>Audience</label></th>
+            <th><label for="lad_audience">Audience</label></th>
             <td>
-                <select name="lad_cs_audience" id="lad_cs_audience">
-                    <?php foreach ( $all_audiences as $aud ) : ?>
-                        <option value="<?php echo esc_attr( $aud ); ?>" <?php selected( $audience, $aud ); ?>>
-                            <?php echo esc_html( $aud ); ?>
-                        </option>
+                <select id="lad_audience" name="lad_audience">
+                    <?php foreach ( $audience_options as $opt ) : ?>
+                        <option value="<?php echo esc_attr( $opt ); ?>" <?php selected( $audience, $opt ); ?>><?php echo esc_html( $opt ); ?></option>
                     <?php endforeach; ?>
                 </select>
             </td>
         </tr>
         <tr>
-            <th><label>Tools Used</label></th>
+            <th>Tools Used</th>
             <td>
-                <?php foreach ( $all_tools as $tool ) : ?>
-                    <label style="display:block; margin-bottom:4px;">
-                        <input type="checkbox" name="lad_cs_tools[]" value="<?php echo esc_attr( $tool ); ?>"
-                            <?php checked( in_array( $tool, $selected_tools ) ); ?> />
-                        <?php echo esc_html( $tool ); ?>
+                <?php foreach ( $tool_options as $opt ) : ?>
+                    <label style="display:inline-block;margin-right:15px;">
+                        <input type="checkbox" name="lad_tools[]" value="<?php echo esc_attr( $opt ); ?>" <?php checked( in_array( $opt, $tools, true ) ); ?> />
+                        <?php echo esc_html( $opt ); ?>
                     </label>
                 <?php endforeach; ?>
             </td>
         </tr>
         <tr>
-            <th><label for="lad_cs_tag">Tag</label></th>
-            <td><input type="text" id="lad_cs_tag" name="lad_cs_tag" value="<?php echo esc_attr( $tag ); ?>" class="regular-text" placeholder="e.g. Speech &amp; Audio" /></td>
+            <th><label for="lad_tag">Tag</label></th>
+            <td><input type="text" id="lad_tag" name="lad_tag" value="<?php echo esc_attr( $tag ); ?>" class="regular-text" placeholder="e.g. Speech & Audio" /></td>
         </tr>
         <tr>
-            <th><label for="lad_cs_problem">The Challenge</label></th>
-            <td><textarea id="lad_cs_problem" name="lad_cs_problem" rows="5" class="large-text"><?php echo esc_textarea( $problem ); ?></textarea></td>
+            <th><label for="lad_problem">The Challenge (Problem)</label></th>
+            <td><textarea id="lad_problem" name="lad_problem" rows="4" class="large-text"><?php echo esc_textarea( $problem ); ?></textarea></td>
         </tr>
         <tr>
-            <th><label for="lad_cs_outcome">What Happened (Outcome)</label></th>
-            <td><textarea id="lad_cs_outcome" name="lad_cs_outcome" rows="5" class="large-text"><?php echo esc_textarea( $outcome ); ?></textarea></td>
+            <th><label for="lad_outcome">What Happened (Outcome)</label></th>
+            <td><textarea id="lad_outcome" name="lad_outcome" rows="4" class="large-text"><?php echo esc_textarea( $outcome ); ?></textarea></td>
         </tr>
         <tr>
-            <th><label for="lad_cs_quote">Quote (optional)</label></th>
-            <td><textarea id="lad_cs_quote" name="lad_cs_quote" rows="3" class="large-text"><?php echo esc_textarea( $quote ); ?></textarea></td>
+            <th><label for="lad_quote">Quote (optional)</label></th>
+            <td><textarea id="lad_quote" name="lad_quote" rows="2" class="large-text"><?php echo esc_textarea( $quote ); ?></textarea></td>
         </tr>
     </table>
     <?php
 }
  
 function lad_save_case_study_meta( $post_id ) {
-    if ( ! isset( $_POST['lad_case_study_nonce'] ) || ! wp_verify_nonce( $_POST['lad_case_study_nonce'], 'lad_case_study_save' ) ) return;
+    if ( ! isset( $_POST['lad_case_study_nonce'] ) || ! wp_verify_nonce( $_POST['lad_case_study_nonce'], 'lad_save_case_study' ) ) return;
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
     if ( ! current_user_can( 'edit_post', $post_id ) ) return;
  
-    $text_fields = [ 'lad_cs_location', 'lad_cs_role', 'lad_cs_audience', 'lad_cs_problem', 'lad_cs_outcome', 'lad_cs_quote', 'lad_cs_tag' ];
-    foreach ( $text_fields as $field ) {
-        if ( isset( $_POST[$field] ) ) {
-            update_post_meta( $post_id, $field, sanitize_textarea_field( $_POST[$field] ) );
+    $text_fields = [ 'location', 'role', 'audience', 'tag' ];
+    foreach ( $text_fields as $f ) {
+        if ( isset( $_POST["lad_$f"] ) ) {
+            update_post_meta( $post_id, $f, sanitize_text_field( $_POST["lad_$f"] ) );
         }
     }
  
-    // Tools: stored as JSON array
-    $tools = isset( $_POST['lad_cs_tools'] ) ? array_map( 'sanitize_text_field', $_POST['lad_cs_tools'] ) : [];
-    update_post_meta( $post_id, 'lad_cs_tools', wp_json_encode( $tools ) );
+    $textarea_fields = [ 'problem', 'outcome', 'quote' ];
+    foreach ( $textarea_fields as $f ) {
+        if ( isset( $_POST["lad_$f"] ) ) {
+            update_post_meta( $post_id, $f, sanitize_textarea_field( $_POST["lad_$f"] ) );
+        }
+    }
+ 
+    $tools = isset( $_POST['lad_tools'] ) ? array_map( 'sanitize_text_field', (array) $_POST['lad_tools'] ) : [];
+    update_post_meta( $post_id, 'tools', $tools );
 }
 add_action( 'save_post_lad_case_study', 'lad_save_case_study_meta' );
  
  
-// ── 2. RESOURCES ──────────────────────────────────────────────────────────────
- 
-function lad_register_resource_post_type() {
-    register_post_type( 'lad_resource', [
-        'labels' => [
-            'name'          => 'Resources',
-            'singular_name' => 'Resource',
-            'add_new_item'  => 'Add New Resource',
-            'edit_item'     => 'Edit Resource',
-        ],
-        'public'       => true,
-        'has_archive'  => false,
-        'show_in_rest' => true,
-        'supports'     => [ 'title' ],   // title = resource title
-        'rewrite'      => [ 'slug' => 'resources' ],
-        'menu_icon'    => 'dashicons-book-alt',
-    ] );
-}
-add_action( 'init', 'lad_register_resource_post_type' );
- 
-function lad_register_resource_meta() {
-    $fields = [
-        'lad_res_format'       => 'string', // 'Videos' | 'Reports' | etc.
-        'lad_res_description'  => 'string',
-        'lad_res_date'         => 'string',
-        'lad_res_duration'     => 'string',
-        'lad_res_language'     => 'string',
-        'lad_res_author'       => 'string',
-        'lad_res_outlet'       => 'string',
-        'lad_res_link'         => 'string',
-        'lad_res_downloadable' => 'boolean',
-        'lad_res_coming_soon'  => 'boolean',
-    ];
- 
-    foreach ( $fields as $key => $type ) {
-        register_post_meta( 'lad_resource', $key, [
-            'type'         => $type,
-            'single'       => true,
-            'show_in_rest' => true,
-            'default'      => ( $type === 'boolean' ) ? false : '',
-        ] );
-    }
-}
-add_action( 'init', 'lad_register_resource_meta' );
- 
-function lad_resource_meta_box() {
+/* ----------------------------------------------------------------
+   2. RESOURCE META BOX
+   ---------------------------------------------------------------- */
+function lad_add_resource_meta_box() {
     add_meta_box(
         'lad_resource_details',
         'Resource Details',
-        'lad_resource_meta_box_html',
+        'lad_render_resource_meta_box',
         'lad_resource',
         'normal',
         'high'
     );
 }
-add_action( 'add_meta_boxes', 'lad_resource_meta_box' );
+add_action( 'add_meta_boxes', 'lad_add_resource_meta_box' );
  
-function lad_resource_meta_box_html( $post ) {
-    wp_nonce_field( 'lad_resource_save', 'lad_resource_nonce' );
+function lad_render_resource_meta_box( $post ) {
+    wp_nonce_field( 'lad_save_resource', 'lad_resource_nonce' );
  
-    $format       = get_post_meta( $post->ID, 'lad_res_format', true );
-    $description  = get_post_meta( $post->ID, 'lad_res_description', true );
-    $date         = get_post_meta( $post->ID, 'lad_res_date', true );
-    $duration     = get_post_meta( $post->ID, 'lad_res_duration', true );
-    $language     = get_post_meta( $post->ID, 'lad_res_language', true );
-    $author       = get_post_meta( $post->ID, 'lad_res_author', true );
-    $outlet       = get_post_meta( $post->ID, 'lad_res_outlet', true );
-    $link         = get_post_meta( $post->ID, 'lad_res_link', true );
-    $downloadable = get_post_meta( $post->ID, 'lad_res_downloadable', true );
-    $coming_soon  = get_post_meta( $post->ID, 'lad_res_coming_soon', true );
+    $format       = get_post_meta( $post->ID, 'format', true );
+    $date         = get_post_meta( $post->ID, 'date', true );
+    $duration     = get_post_meta( $post->ID, 'duration', true );
+    $language     = get_post_meta( $post->ID, 'language', true );
+    $author       = get_post_meta( $post->ID, 'author', true );
+    $outlet       = get_post_meta( $post->ID, 'outlet', true );
+    $link         = get_post_meta( $post->ID, 'link', true );
+    $downloadable = get_post_meta( $post->ID, 'downloadable', true );
+    $comingSoon   = get_post_meta( $post->ID, 'comingSoon', true );
  
-    $all_formats = [ 'Videos', 'Summaries & Explainers', 'Policy Briefs', 'Reports', 'Articles & Publications', 'Audio Explainers' ];
+    $format_options = [ 'Videos', 'Summaries & Explainers', 'Policy Briefs', 'Reports', 'Articles & Publications', 'Audio Explainers' ];
     ?>
-    <p><em>Use the post Title field above for the resource title.</em></p>
+    <p><em>Note: post Title = resource title. Use the main Content editor below for the description.</em></p>
+ 
     <table class="form-table">
         <tr>
-            <th><label for="lad_res_format">Format</label></th>
+            <th><label for="lad_format">Format</label></th>
             <td>
-                <select name="lad_res_format" id="lad_res_format">
-                    <option value="">— Select format —</option>
-                    <?php foreach ( $all_formats as $fmt ) : ?>
-                        <option value="<?php echo esc_attr( $fmt ); ?>" <?php selected( $format, $fmt ); ?>>
-                            <?php echo esc_html( $fmt ); ?>
-                        </option>
+                <select id="lad_format" name="lad_format">
+                    <?php foreach ( $format_options as $opt ) : ?>
+                        <option value="<?php echo esc_attr( $opt ); ?>" <?php selected( $format, $opt ); ?>><?php echo esc_html( $opt ); ?></option>
                     <?php endforeach; ?>
                 </select>
             </td>
         </tr>
         <tr>
-            <th><label for="lad_res_description">Description</label></th>
-            <td><textarea id="lad_res_description" name="lad_res_description" rows="4" class="large-text"><?php echo esc_textarea( $description ); ?></textarea></td>
+            <th><label for="lad_date">Date</label></th>
+            <td><input type="text" id="lad_date" name="lad_date" value="<?php echo esc_attr( $date ); ?>" class="regular-text" placeholder="e.g. March 2025" /></td>
         </tr>
         <tr>
-            <th><label for="lad_res_outlet">Outlet / Publisher</label></th>
-            <td><input type="text" id="lad_res_outlet" name="lad_res_outlet" value="<?php echo esc_attr( $outlet ); ?>" class="regular-text" placeholder="e.g. MIT Technology Review" /></td>
+            <th><label for="lad_duration">Duration / Label</label></th>
+            <td><input type="text" id="lad_duration" name="lad_duration" value="<?php echo esc_attr( $duration ); ?>" class="regular-text" placeholder="e.g. Watch on YouTube, 12 min read" /></td>
         </tr>
         <tr>
-            <th><label for="lad_res_author">Author(s)</label></th>
-            <td><input type="text" id="lad_res_author" name="lad_res_author" value="<?php echo esc_attr( $author ); ?>" class="regular-text" /></td>
+            <th><label for="lad_language">Language</label></th>
+            <td><input type="text" id="lad_language" name="lad_language" value="<?php echo esc_attr( $language ); ?>" class="regular-text" placeholder="e.g. English" /></td>
         </tr>
         <tr>
-            <th><label for="lad_res_date">Date</label></th>
-            <td><input type="text" id="lad_res_date" name="lad_res_date" value="<?php echo esc_attr( $date ); ?>" class="regular-text" placeholder="e.g. 21 April 2026" /></td>
+            <th><label for="lad_author">Author</label></th>
+            <td><input type="text" id="lad_author" name="lad_author" value="<?php echo esc_attr( $author ); ?>" class="regular-text" /></td>
         </tr>
         <tr>
-            <th><label for="lad_res_language">Language</label></th>
-            <td><input type="text" id="lad_res_language" name="lad_res_language" value="<?php echo esc_attr( $language ); ?>" class="regular-text" placeholder="e.g. English" /></td>
+            <th><label for="lad_outlet">Outlet / Publisher</label></th>
+            <td><input type="text" id="lad_outlet" name="lad_outlet" value="<?php echo esc_attr( $outlet ); ?>" class="regular-text" /></td>
         </tr>
         <tr>
-            <th><label for="lad_res_duration">Duration / Watch Label</label></th>
-            <td><input type="text" id="lad_res_duration" name="lad_res_duration" value="<?php echo esc_attr( $duration ); ?>" class="regular-text" placeholder="e.g. Watch on YouTube" /></td>
+            <th><label for="lad_link">Link (URL)</label></th>
+            <td><input type="url" id="lad_link" name="lad_link" value="<?php echo esc_attr( $link ); ?>" class="regular-text" placeholder="https://..." /></td>
         </tr>
         <tr>
-            <th><label for="lad_res_link">Link URL</label></th>
-            <td><input type="url" id="lad_res_link" name="lad_res_link" value="<?php echo esc_attr( $link ); ?>" class="large-text" placeholder="https:// or /internal-path" /></td>
+            <th>Downloadable?</th>
+            <td><label><input type="checkbox" name="lad_downloadable" value="1" <?php checked( $downloadable, '1' ); ?> /> Yes</label></td>
         </tr>
         <tr>
-            <th>Flags</th>
-            <td>
-                <label style="display:block; margin-bottom:6px;">
-                    <input type="checkbox" name="lad_res_downloadable" value="1" <?php checked( $downloadable, '1' ); ?> />
-                    Downloadable
-                </label>
-                <label>
-                    <input type="checkbox" name="lad_res_coming_soon" value="1" <?php checked( $coming_soon, '1' ); ?> />
-                    Coming Soon
-                </label>
-            </td>
+            <th>Coming Soon?</th>
+            <td><label><input type="checkbox" name="lad_comingSoon" value="1" <?php checked( $comingSoon, '1' ); ?> /> Yes</label></td>
         </tr>
     </table>
     <?php
 }
  
 function lad_save_resource_meta( $post_id ) {
-    if ( ! isset( $_POST['lad_resource_nonce'] ) || ! wp_verify_nonce( $_POST['lad_resource_nonce'], 'lad_resource_save' ) ) return;
+    if ( ! isset( $_POST['lad_resource_nonce'] ) || ! wp_verify_nonce( $_POST['lad_resource_nonce'], 'lad_save_resource' ) ) return;
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
     if ( ! current_user_can( 'edit_post', $post_id ) ) return;
  
-    $text_fields = [ 'lad_res_format', 'lad_res_description', 'lad_res_date', 'lad_res_duration', 'lad_res_language', 'lad_res_author', 'lad_res_outlet' ];
-    foreach ( $text_fields as $field ) {
-        if ( isset( $_POST[$field] ) ) {
-            update_post_meta( $post_id, $field, sanitize_textarea_field( $_POST[$field] ) );
+    $text_fields = [ 'format', 'date', 'duration', 'language', 'author', 'outlet' ];
+    foreach ( $text_fields as $f ) {
+        if ( isset( $_POST["lad_$f"] ) ) {
+            update_post_meta( $post_id, $f, sanitize_text_field( $_POST["lad_$f"] ) );
         }
     }
  
-    if ( isset( $_POST['lad_res_link'] ) ) {
-        update_post_meta( $post_id, 'lad_res_link', esc_url_raw( $_POST['lad_res_link'] ) );
+    if ( isset( $_POST['link'] ) ) {
+        update_post_meta( $post_id, 'link', sanitize_url( $_POST['lad_link'] ) );
     }
  
-    update_post_meta( $post_id, 'lad_res_downloadable', isset( $_POST['lad_res_downloadable'] ) ? '1' : '0' );
-    update_post_meta( $post_id, 'lad_res_coming_soon',  isset( $_POST['lad_res_coming_soon'] )  ? '1' : '0' );
+    update_post_meta( $post_id, 'downloadable', isset( $_POST['lad_downloadable'] ) ? '1' : '' );
+    update_post_meta( $post_id, 'comingSoon', isset( $_POST['lad_comingSoon'] ) ? '1' : '' );
 }
 add_action( 'save_post_lad_resource', 'lad_save_resource_meta' );
  
  
-// ── 3. DICTIONARY TERMS ───────────────────────────────────────────────────────
- 
-function lad_register_dictionary_post_type() {
-    register_post_type( 'lad_term', [
-        'labels' => [
-            'name'          => 'Dictionary Terms',
-            'singular_name' => 'Dictionary Term',
-            'add_new_item'  => 'Add New Term',
-            'edit_item'     => 'Edit Term',
-        ],
-        'public'       => true,
-        'has_archive'  => false,
-        'show_in_rest' => true,
-        'supports'     => [ 'title' ],  // title = the term
-        'rewrite'      => [ 'slug' => 'dictionary' ],
-        'menu_icon'    => 'dashicons-editor-textcolor',
-    ] );
-}
-add_action( 'init', 'lad_register_dictionary_post_type' );
- 
-function lad_register_dictionary_meta() {
-    $fields = [
-        'lad_term_category'     => 'string',  // 'Legal' | 'Data Governance' | 'NOODL' | 'Technical' | 'Policy'
-        'lad_term_definition'   => 'string',
-        'lad_term_related'      => 'string',  // comma-separated list of related term names
-        'lad_term_example'      => 'string',
-    ];
- 
-    foreach ( $fields as $key => $type ) {
-        register_post_meta( 'lad_term', $key, [
-            'type'         => $type,
-            'single'       => true,
-            'show_in_rest' => true,
-            'default'      => '',
-        ] );
-    }
-}
-add_action( 'init', 'lad_register_dictionary_meta' );
- 
-function lad_dictionary_meta_box() {
+/* ----------------------------------------------------------------
+   3. DICTIONARY TERM META BOX
+   ---------------------------------------------------------------- */
+function lad_add_term_meta_box() {
     add_meta_box(
         'lad_term_details',
-        'Term Details',
-        'lad_dictionary_meta_box_html',
+        'Dictionary Term Details',
+        'lad_render_term_meta_box',
         'lad_term',
         'normal',
         'high'
     );
 }
-add_action( 'add_meta_boxes', 'lad_dictionary_meta_box' );
+add_action( 'add_meta_boxes', 'lad_add_term_meta_box' );
  
-function lad_dictionary_meta_box_html( $post ) {
-    wp_nonce_field( 'lad_term_save', 'lad_term_nonce' );
+function lad_render_term_meta_box( $post ) {
+    wp_nonce_field( 'lad_save_term', 'lad_term_nonce' );
  
-    $category   = get_post_meta( $post->ID, 'lad_term_category', true );
-    $definition = get_post_meta( $post->ID, 'lad_term_definition', true );
-    $related    = get_post_meta( $post->ID, 'lad_term_related', true );
-    $example    = get_post_meta( $post->ID, 'lad_term_example', true );
+    $category     = get_post_meta( $post->ID, 'category', true );
+    $example      = get_post_meta( $post->ID, 'example', true );
  
-    $all_categories = [ 'Legal', 'Data Governance', 'NOODL', 'Technical', 'Policy' ];
+    $category_options = [ 'Legal', 'Data Governance', 'NOODL', 'Technical', 'Policy' ];
     ?>
-    <p><em>Use the post Title field above for the term name.</em></p>
+    <p><em>Note: post Title = the term itself. Use the main Content editor below for the definition.</em></p>
+ 
     <table class="form-table">
         <tr>
-            <th><label for="lad_term_category">Category</label></th>
+            <th><label for="lad_category">Category</label></th>
             <td>
-                <select name="lad_term_category" id="lad_term_category">
-                    <option value="">— Select category —</option>
-                    <?php foreach ( $all_categories as $cat ) : ?>
-                        <option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $category, $cat ); ?>>
-                            <?php echo esc_html( $cat ); ?>
-                        </option>
+                <select id="lad_category" name="lad_category">
+                    <?php foreach ( $category_options as $opt ) : ?>
+                        <option value="<?php echo esc_attr( $opt ); ?>" <?php selected( $category, $opt ); ?>><?php echo esc_html( $opt ); ?></option>
                     <?php endforeach; ?>
                 </select>
             </td>
         </tr>
+
         <tr>
-            <th><label for="lad_term_definition">Definition</label></th>
-            <td><textarea id="lad_term_definition" name="lad_term_definition" rows="6" class="large-text"><?php echo esc_textarea( $definition ); ?></textarea></td>
-        </tr>
-        <tr>
-            <th><label for="lad_term_related">Related Terms</label></th>
-            <td>
-                <input type="text" id="lad_term_related" name="lad_term_related" value="<?php echo esc_attr( $related ); ?>" class="large-text" placeholder="Comma-separated, e.g. License, Copyright, Data Rights" />
-                <p class="description">Separate each related term with a comma. Term names must match exactly.</p>
-            </td>
-        </tr>
-        <tr>
-            <th><label for="lad_term_example">Example in Practice (optional)</label></th>
-            <td><textarea id="lad_term_example" name="lad_term_example" rows="4" class="large-text"><?php echo esc_textarea( $example ); ?></textarea></td>
+            <th><label for="lad_example">Example (optional)</label></th>
+            <td><textarea id="lad_example" name="lad_example" rows="3" class="large-text"><?php echo esc_textarea( $example ); ?></textarea></td>
         </tr>
     </table>
     <?php
 }
  
-function lad_save_dictionary_meta( $post_id ) {
-    if ( ! isset( $_POST['lad_term_nonce'] ) || ! wp_verify_nonce( $_POST['lad_term_nonce'], 'lad_term_save' ) ) return;
+function lad_save_term_meta( $post_id ) {
+    if ( ! isset( $_POST['lad_term_nonce'] ) || ! wp_verify_nonce( $_POST['lad_term_nonce'], 'lad_save_term' ) ) return;
     if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
     if ( ! current_user_can( 'edit_post', $post_id ) ) return;
  
-    $text_fields = [ 'lad_term_category', 'lad_term_definition', 'lad_term_related', 'lad_term_example' ];
-    foreach ( $text_fields as $field ) {
-        if ( isset( $_POST[$field] ) ) {
-            update_post_meta( $post_id, $field, sanitize_textarea_field( $_POST[$field] ) );
-        }
+    if ( isset( $_POST['lad_category'] ) ) {
+        update_post_meta( $post_id, 'category', sanitize_text_field( $_POST['lad_category'] ) );
+    }
+ 
+ 
+    if ( isset( $_POST['lad_example'] ) ) {
+        update_post_meta( $post_id, 'example', sanitize_textarea_field( $_POST['lad_example'] ) );
     }
 }
-add_action( 'save_post_lad_term', 'lad_save_dictionary_meta' );
- 
- 
-// ── 4. FLUSH REWRITES on theme switch (add all 3 types) ───────────────────────
-// Note: your existing lad_flush_rewrites already calls lad_register_post_type().
-// Replace it with this version that also registers the three new types:
- 
-remove_action( 'after_switch_theme', 'lad_flush_rewrites' );
- 
-function lad_flush_all_rewrites() {
-    lad_register_post_type();            // your existing lad_update type
-    lad_register_case_study_post_type();
-    lad_register_resource_post_type();
-    lad_register_dictionary_post_type();
+add_action( 'save_post_lad_term', 'lad_save_term_meta' );
+
+add_filter( 'use_block_editor_for_post_type', function( $use_block_editor, $post_type ) {
+    if ( in_array( $post_type, [ 'lad_resource', 'lad_term', 'lad_update' ], true ) ) {
+        return false;
+    }
+    return $use_block_editor;
+}, 10, 2 );;
+/** Flush rewrites once for new CPTs */
+function lad_flush_new_cpts() {
+    lad_register_case_study_cpt();
+    lad_register_resource_cpt();
+    lad_register_dictionary_cpt();
     flush_rewrite_rules();
 }
-add_action( 'after_switch_theme', 'lad_flush_all_rewrites' );
- 
+add_action( 'after_switch_theme', 'lad_flush_new_cpts' );
+
+/* ----------------------------------------------------------------
+   CORS — allow the Vite dev server and production frontend
+   ---------------------------------------------------------------- */
+function lad_rest_cors_headers() {
+    $allowed = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://licensing-african-datasets-prototype.local', // ← update before going live
+    ];
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if ( in_array( $origin, $allowed, true ) ) {
+        header( 'Access-Control-Allow-Origin: ' . $origin );
+        header( 'Access-Control-Allow-Methods: GET, OPTIONS' );
+        header( 'Access-Control-Allow-Headers: Content-Type, Authorization' );
+        header( 'Vary: Origin' );
+    }
+}
+add_action( 'rest_api_init', function () {
+    remove_filter( 'rest_pre_serve_request', 'rest_send_cors_headers' );
+    add_filter( 'rest_pre_serve_request', function ( $value ) {
+        lad_rest_cors_headers();
+        return $value;
+    }, 15 );
+}, 15 );
+
 ?>
-
-
-
-
-
-
-
-
