@@ -56,32 +56,6 @@ const audienceResources: Record<NonNullable<Audience>, {
   },
 };
 
-const marqueeItems = [
-  'NOODL Licence', 'Split Sheet', 'Equitable Licensing', 'African Datasets',
-  'Benefit Sharing', 'Data Sovereignty', 'Ubuntu Data Ethics', 'Open & Equitable',
-  'Community Credit', 'Nwulite Obodo', '43+ Datasets', 'In Practice',
-];
-
-function Marquee() {
-  const doubled = [...marqueeItems, ...marqueeItems];
-  return (
-      <div className="overflow-hidden py-4 border-y" style={{ backgroundColor: '#1A2E2E', borderColor: 'rgba(249,168,38,0.3)' }}>
-        <style>{`
-        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .marquee-track { display: flex; width: max-content; animation: marquee 28s linear infinite; }
-        .marquee-track:hover { animation-play-state: paused; }
-      `}</style>
-        <div className="marquee-track">
-          {doubled.map((item, i) => (
-              <span key={i} className="flex items-center gap-6 px-8 text-sm font-bold uppercase tracking-widest whitespace-nowrap" style={{ color: i % 3 === 0 ? '#F9A826' : 'rgba(255,255,255,0.5)' }}>
-            {item}
-                <span style={{ color: '#268181' }}>◆</span>
-          </span>
-          ))}
-        </div>
-      </div>
-  );
-}
 
 export function Home() {
   const [activeAudience, setActiveAudience] = useState<Audience>(null);
@@ -160,26 +134,10 @@ export function Home() {
                   View the Licence
                 </Link>
               </div>
-
-              {/* Quick stats inline */}
-              <div className="flex flex-wrap gap-8 mt-14 pt-10 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                {[
-                  { n: '43+', label: 'Datasets licensed' },
-                  { n: '2024', label: 'Launched at Indaba' },
-                  { n: '100+', label: 'Community members' },
-                ].map(({ n, label }) => (
-                    <div key={n}>
-                      <div className="font-extrabold" style={{ fontSize: '2rem', color: '#F9A826', lineHeight: 1 }}>{n}</div>
-                      <div className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>{label}</div>
-                    </div>
-                ))}
-              </div>
             </div>
           </div>
         </section>
 
-        {/* ── MARQUEE ──────────────────────────────────────────── */}
-        <Marquee />
 
         {/* ── FRAMEWORK TOOLS STRIP ────────────────────────────── */}
         <section className="py-20 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#F5F5F5' }}>
@@ -188,7 +146,7 @@ export function Home() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#F9A826' }}>The NOODL Framework</p>
                 <h2 className="font-extrabold" style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', color: '#1A2E2E', lineHeight: 1.15, letterSpacing: '-0.02em' }}>
-                  Four tools.<br />One framework.
+                  Several tools.<br />One framework.
                 </h2>
               </div>
               <Link to="/noodl-framework" className="flex-shrink-0 flex items-center gap-2 text-sm font-bold hover:opacity-70 transition-opacity" style={{ color: '#268181' }}>
@@ -200,7 +158,7 @@ export function Home() {
               {[
                 { num: '01', title: 'NOODL Licence', desc: 'Open sharing on equitable terms — treats different users differently.', to: '/nwulite-obodo-license', accent: '#268181' },
                 { num: '02', title: 'Split Sheet', desc: 'A signed record of every contributor, their role, and their share.', to: '/noodl-framework/split-sheet', accent: '#29D4AB' },
-                { num: '03', title: 'Dictionary', desc: 'Plain-language definitions of every term in equitable data licensing.', to: '/noodl-framework/dictionary', accent: '#F9A826' },
+                { num: '03', title: 'Equitable Dictionary', desc: 'Plain-language definitions of every term in equitable data licensing.', to: '/noodl-framework/dictionary', accent: '#F9A826' },
                 { num: '04', title: 'Resource Library', desc: 'Explainers, briefs, reports, and videos as the framework grows.', to: '/noodl-framework/resources', accent: '#E19111' },
               ].map(tool => (
                   <Link
@@ -321,7 +279,7 @@ export function Home() {
 
             {/* Shared destinations */}
             <div className="mt-5 rounded-2xl border px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4" style={{ borderColor: '#F9A82650', backgroundColor: '#FFF8E7' }}>
-              <p className="text-sm font-bold flex-shrink-0" style={{ color: '#1A2E2E' }}>Available to everyone:</p>
+              <p className="text-sm font-bold flex-shrink-0" style={{ color: '#1A2E2E' }}>All resources are available to everyone:</p>
               <div className="flex flex-wrap gap-3">
                 <Link to="/noodl-framework/dictionary" className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all hover:shadow-sm" style={{ borderColor: '#E19111', color: '#E19111', backgroundColor: 'white' }}>
                   <BookOpen className="w-3.5 h-3.5" /> Equitable Licensing Dictionary

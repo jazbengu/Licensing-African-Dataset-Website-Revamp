@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route  } from 'react-router-dom'
+import { BrowserRouter, Routes, Route  } from 'react-router-dom'
 import { WelcomePopup } from './components/WelcomePopup';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -11,12 +11,16 @@ import { GetInvolved } from './pages/GetInvolved';
 import { SplitSheet } from './pages/split-sheet'
 import { Resources } from './pages/Resources';
 import {InPractice} from "./pages/In-Practice";
+import { TermsOfService } from "./pages/terms";
+import { License } from "./pages/license";
+import { PrivacyPolicy } from "./pages/Privacy";
+
 
 
 
 export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <WelcomePopup />
       <Layout>
         <Routes>
@@ -30,8 +34,11 @@ export default function App() {
           <Route path="/noodl-framework/dictionary" element={<Dictionary />} />
           <Route path="/noodl-framework/resources" element={<Resources />} />
           <Route path="/noodl-framework/in-practice" element={<InPractice />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy"  element={<PrivacyPolicy />} />
+          <Route path ="/license" element={<License />} />
         </Routes>
       </Layout>
-    </HashRouter>
+    </BrowserRouter>
   );
 }

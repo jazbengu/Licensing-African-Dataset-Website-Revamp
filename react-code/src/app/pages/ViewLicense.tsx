@@ -1,10 +1,15 @@
-import { Download, Copy, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useState } from 'react';
+import { Download, Copy, CheckCircle, AlertTriangle, FileText } from 'lucide-react';
+import { useState} from 'react';
 import { LicenseGenerator } from '../components/LicenseGenerator';
+import { Link } from 'react-router-dom';
+import licensePdf from '../../imports/NOODL-License-v1.0.pdf';
+import licenseTxt from '../../imports/License.txt';
+
 
 function HowToUseTile() {
   const [copied, setCopied] = useState(false);
   const noticeText = 'This dataset is licensed under the Nwulite Obodo Open Data License. View the license at this link: https://licensingafricandatasets.com/nwulite-obodo-license.';
+
 
   const handleCopy = () => {
     navigator.clipboard.writeText(noticeText).then(() => {
@@ -12,6 +17,8 @@ function HowToUseTile() {
       setTimeout(() => setCopied(false), 2500);
     });
   };
+
+
 
   return (
       <div className="rounded-2xl border-2 overflow-hidden sticky top-28" style={{ borderColor: '#F9A826' }}>
@@ -31,7 +38,9 @@ function HowToUseTile() {
             <p className="text-xs mb-2" style={{ color: '#718096', lineHeight: 1.6 }}>
               Add this text in all relevant locations — README files, dataset cards, repository descriptions, and publications.
             </p>
-            <div className="rounded-lg p-3 border text-xs" style={{ backgroundColor: '#FFF8E7', borderColor: '#F9A82660', color: '#1A2E2E', lineHeight: 1.6 }}>
+            <div className="rounded-lg p-3 border text-xs" style={{ backgroundColor: '#FFF8E7', borderColor: '#F9A82660', color: '#1A2E2E', lineHeight: 1.6, overflowWrap: 'break-word',
+    wordBreak: 'break-word',
+    whiteSpace: 'normal' }}>
               {noticeText}
             </div>
             <button
@@ -51,30 +60,59 @@ function HowToUseTile() {
           {/* Step 2 */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ backgroundColor: '#F9A826', color: '#1A2E2E' }}>2</span>
+    <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+          style={{ backgroundColor: '#F9A826', color: '#1A2E2E' }}>2</span>
               <p className="text-sm font-bold" style={{ color: '#1A2E2E' }}>Download and include a copy</p>
             </div>
             <p className="text-xs mb-3" style={{ color: '#718096', lineHeight: 1.6 }}>
               Download the license and put a copy in your project repository or dataset package.
             </p>
             <div className="space-y-2">
-              {[{ label: 'Download (.txt)', sub: 'Plain text' }, { label: 'Download (.pdf)', sub: 'For sharing' }].map(btn => (
+              {[
+                {
+                  label: 'Download (.txt)',
+                  sub: 'Plain text',
+                  file: licenseTxt,
+                  filename: 'NOODL-License-v1.0.txt',
+                },
+                {
+                  label: 'Download (.pdf)',
+                  sub: 'For sharing',
+                  file: licensePdf,
+                  filename: 'NOODL-License-v1.0.pdf',
+                },
+              ].map((btn) => (
                   <a
                       key={btn.label}
-                      href="#"
+                      href={btn.file}
+                      download={btn.filename}
                       className="flex items-center justify-between w-full px-3 py-2.5 rounded-lg border text-xs font-semibold transition-all hover:shadow-sm"
-                      style={{ borderColor: '#E2ECEC', color: '#1A2E2E', backgroundColor: '#F5F5F5' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#F9A826'; (e.currentTarget as HTMLElement).style.backgroundColor = '#FFF8E7'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#E2ECEC'; (e.currentTarget as HTMLElement).style.backgroundColor = '#F5F5F5'; }}
+                      style={{
+                        borderColor: '#E2ECEC',
+                        color: '#1A2E2E',
+                        backgroundColor: '#F5F5F5',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#F9A826';
+                        e.currentTarget.style.backgroundColor = '#FFF8E7';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#E2ECEC';
+                        e.currentTarget.style.backgroundColor = '#F5F5F5';
+                      }}
                   >
-                    <span className="flex items-center gap-2"><Download className="w-3.5 h-3.5" style={{ color: '#F9A826' }} /> {btn.label}</span>
-                    <span className="opacity-50 font-normal">{btn.sub}</span>
+      <span className="flex items-center gap-2">
+        <Download className="w-3.5 h-3.5" style={{ color: '#F9A826' }} />
+        {btn.label}
+      </span>
+
+                    <span className="opacity-50 font-normal">
+        {btn.sub}
+      </span>
                   </a>
               ))}
             </div>
           </div>
-
-          <div className="border-t" style={{ borderColor: '#F5F5F5' }} />
 
           {/* Help links */}
           <div className="space-y-2">
@@ -95,9 +133,10 @@ function HowToUseTile() {
 }
 
 export function ViewLicense() {
+
   return (
       <div className="w-full">
-        {/* Header */}
+
         <section className="relative overflow-hidden py-28 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#1A2E2E' }}>
           <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none opacity-10" style={{ background: 'radial-gradient(circle, #F9A826 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
           <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full pointer-events-none opacity-8" style={{ background: 'radial-gradient(circle, #29D4AB 0%, transparent 70%)', transform: 'translate(-20%, 20%)' }} />
@@ -109,7 +148,8 @@ export function ViewLicense() {
             <h1 className="font-extrabold text-white mb-4" style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)', lineHeight: 1.05, letterSpacing: '-0.02em' }}>
               Nwulite Obodo<br />Open Data License
             </h1>
-            <p className="font-bold" style={{ color: '#F9A826', fontSize: '1.1rem' }}>Version 1.0</p>
+            <p className="font-bold mb-8" style={{ color: '#F9A826', fontSize: '1.1rem' }}>Version 1.0</p>
+
           </div>
         </section>
 
@@ -124,13 +164,25 @@ export function ViewLicense() {
         </section>
 
         {/* License Text + Sidebar */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: 'white' }}>
+        <section id="license-text-section" className="py-16 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: 'white' }}>
           <div className="container mx-auto max-w-5xl">
             <div className="flex flex-col lg:flex-row gap-10 items-start">
 
               {/* License text — main column */}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#F9A826' }}>Licence text</p>
+                <Link
+                    to="/license"
+                    className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-bold text-sm transition-all hover:scale-[1.02] hover:shadow-lg"
+                    style={{ backgroundColor: '#F9A826', color: '#1A2E2E' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#FFC55C'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = '#F9A826'; }}
+                >
+                  <FileText className="w-4 h-4" />
+                  Read full license text
+                </Link>
+                <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: '#F9A826' }}>
+
+                </p>
                 <h2 className="font-extrabold mb-6" style={{ color: '#1A2E2E', fontSize: '1.5rem', letterSpacing: '-0.01em' }}>NWULITE OBODO OPEN DATA LICENSE</h2>
 
                 <div className="space-y-6" style={{ color: '#4A6363', lineHeight: 1.8 }}>
@@ -162,13 +214,6 @@ export function ViewLicense() {
                           </li>
                       ))}
                     </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="font-extrabold mb-2" style={{ color: '#1A2E2E', fontSize: '1.05rem' }}>Full License Text</h3>
-                    <p className="italic" style={{ color: '#9CA3AF' }}>
-                      [The complete legal text of the NOODL License would appear here. This is a placeholder for demonstration purposes.]
-                    </p>
                   </div>
 
                   <div className="p-6 rounded-2xl border-l-4" style={{ backgroundColor: '#FFF8E7', borderColor: '#F9A826' }}>

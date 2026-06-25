@@ -1,11 +1,6 @@
-import { Link } from "react-router";
-import {
-  Users,
-  BookOpen,
-  Library,
-} from "lucide-react";
+import {Link} from "react-router";
+import {BookOpen, Library, Users,} from "lucide-react";
 import noodllogo from '../../imports/NOODL License logo/NOODL black.png';
-
 
 
 export function NOODLFramework() {
@@ -252,7 +247,7 @@ export function NOODLFramework() {
                         className="text-2xl font-bold"
                         style={{ color: "#355E5E" }}
                     >
-                      Dictionary
+                      Equitable Dictionary
                     </h3>
                   </div>
                   <h4

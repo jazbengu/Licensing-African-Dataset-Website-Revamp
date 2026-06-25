@@ -1,5 +1,8 @@
 import { Link } from 'react-router';
 import { Download, FileText, Users, AlertCircle } from 'lucide-react';
+import html2pdf from "html2pdf.js";
+import { Document, Packer, Paragraph, TextRun } from "docx";
+import { saveAs } from "file-saver";
 
 const whatItCovers = [
     {
@@ -249,15 +252,71 @@ export function SplitSheet() {
         URL.revokeObjectURL(url);
     };
 
-    const handlePrint = () => {
+    const handleDownloadPDF = () => {
         const html = generateDownloadHTML();
-        const win = window.open('', '_blank');
-        if (win) {
-            win.document.write(html);
-            win.document.close();
-            win.focus();
-            setTimeout(() => win.print(), 500);
-        }
+
+        const container = document.createElement("div");
+        container.innerHTML = html;
+        document.body.appendChild(container);
+
+        const opt = {
+            margin: 0,
+            filename: "NOODL-Split-Sheet-v1.0.pdf",
+            image: { type: "jpeg" as const, quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const},
+        };
+
+        html2pdf().set(opt).from(container).save().then(() => {
+            document.body.removeChild(container);
+        });
+    };
+    const handleDownloadDOCX = async () => {
+        const doc = new Document({
+            sections: [
+                {
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: "African Dataset Creation Split Sheet",
+                                    bold: true,
+                                    size: 32,
+                                }),
+                            ],
+                        }),
+
+                        new Paragraph("NOODL Framework — Navigating Open and Obligatory Data Licensing"),
+                        new Paragraph(""),
+
+                        new Paragraph("1. The Dataset"),
+                        new Paragraph("Dataset Name / Title: ____________________"),
+                        new Paragraph("Creation Date(s): ____________________"),
+                        new Paragraph("Description: ____________________"),
+
+                        new Paragraph(""),
+
+                        new Paragraph("2. Project Lead"),
+                        new Paragraph("Full Legal Name: ____________________"),
+                        new Paragraph("Email Address: ____________________"),
+
+                        new Paragraph(""),
+
+                        new Paragraph("3. Contributors"),
+                        new Paragraph("Each contributor must be recorded with role + percentage share (total = 100%)."),
+
+                        new Paragraph(""),
+
+                        new Paragraph("4. Signatures"),
+                        new Paragraph("Signature: ____________________"),
+                    ],
+                },
+            ],
+        });
+
+        const blob = await Packer.toBlob(doc);
+
+        saveAs(blob, "NOODL-Split-Sheet-v1.0.docx");
     };
 
     return (
@@ -315,7 +374,7 @@ export function SplitSheet() {
                             {/* DOCX — primary */}
                             <div className="mb-3">
                                 <button
-                                    onClick={handleDownloadHTML}
+                                    onClick={handleDownloadDOCX}
                                     className="w-full flex items-center justify-between gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-all hover:scale-105 shadow-lg"
                                     style={{ background: 'linear-gradient(135deg, #F9A826 0%, #E19111 100%)', color: '#1A2E2E' }}
                                 >
@@ -331,7 +390,7 @@ export function SplitSheet() {
                             {/* PDF — mirror */}
                             <div>
                                 <button
-                                    onClick={handlePrint}
+                                    onClick={handleDownloadPDF}
                                     className="w-full flex items-center justify-between gap-2 px-5 py-3 rounded-xl font-bold text-sm border border-white/30 transition-all hover:bg-white/10"
                                     style={{ backgroundColor: 'transparent', color: 'white' }}
                                 >
@@ -432,7 +491,7 @@ export function SplitSheet() {
                                 <p className="text-sm mt-0.5" style={{ color: '#718096' }}>Read the full template below before downloading.</p>
                             </div>
                             <button
-                                onClick={handleDownloadHTML}
+                                onClick={handleDownloadPDF}
                                 className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105 shadow-sm"
                                 style={{ background: 'linear-gradient(135deg, #268181 0%, #29D4AB 100%)' }}
                             >
@@ -557,7 +616,7 @@ export function SplitSheet() {
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                 <button
-                                    onClick={handleDownloadHTML}
+                                    onClick={handleDownloadDOCX}
                                     className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:scale-105 shadow-md"
                                     style={{ background: 'linear-gradient(135deg, #29D4AB 0%, #268181 100%)' }}
                                 >
@@ -565,7 +624,7 @@ export function SplitSheet() {
                                     Download (.docx)
                                 </button>
                                 <button
-                                    onClick={handlePrint}
+                                    onClick={handleDownloadPDF}
                                     className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm border transition-all hover:shadow-sm"
                                     style={{ borderColor: '#268181', color: '#268181', backgroundColor: 'white' }}
                                 >

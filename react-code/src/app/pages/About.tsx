@@ -1,12 +1,28 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
+import {useEffect, useState} from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export function About() {
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [pressOpen, setPressOpen] = useState(false);
+    const [searchParams] = useSearchParams();
+    const [historyOpen, setHistoryOpen] = useState(() => searchParams.get('section') === 'history');
+    const [pressOpen, setPressOpen] = useState(() => searchParams.get('section') === 'press');
 
-  return (
+    useEffect(() => {
+        const section = searchParams.get('section');
+        if (section === 'history') {
+            setHistoryOpen(true);
+            setTimeout(() => {
+                document.getElementById('history')?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+        if (section === 'press') {
+            setPressOpen(true);
+            setTimeout(() => {
+                document.getElementById('press')?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    }, [searchParams]);
+    return (
     <div className="w-full">
       {/* Header */}
       <section className="relative overflow-hidden py-28 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#1A2E2E' }}>
@@ -46,7 +62,7 @@ export function About() {
       </div>
 
       {/* History Dropdown */}
-      <section className="py-8 px-4 sm:px-6 lg:px-8 border-t" style={{ borderColor: 'rgba(249,168,38,0.3)', backgroundColor: 'white' }}>
+      <section id="history" className="py-8 px-4 sm:px-6 lg:px-8 border-t" style={{ borderColor: 'rgba(249,168,38,0.3)', backgroundColor: 'white' }}>
         <div className="container mx-auto max-w-5xl">
           <button
               onClick={() => setHistoryOpen(!historyOpen)}
@@ -167,7 +183,7 @@ export function About() {
       </section>
 
       {/* Press Dropdown */}
-      <section className="py-8 px-4 sm:px-6 lg:px-8 border-t" style={{ borderColor: 'rgba(249,168,38,0.3)', backgroundColor: '#F5F5F5' }}>
+      <section id="press" className="py-8 px-4 sm:px-6 lg:px-8 border-t" style={{ borderColor: 'rgba(249,168,38,0.3)', backgroundColor: '#F5F5F5' }}>
         <div className="container mx-auto max-w-5xl">
           <button
               onClick={() => setPressOpen(!pressOpen)}
