@@ -1,1 +1,0 @@
-<?php //a:1:{s:7:"staging";a:3:{s:6:"config";s:13:"6a29279ae8f93";s:4:"name";s:7:"staging";s:6:"prefix";s:10:"bmstg2011_";}}
